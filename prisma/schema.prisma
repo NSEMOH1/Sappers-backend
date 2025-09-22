@@ -1,0 +1,430 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "darwin"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rank {
+  AVM
+  AIR_CDRE
+  GP_CAPT
+  WG_CDR
+  SQN_LDR
+  FLT_LT
+  FG_OFFR
+  PLT_OFFR
+  AWO
+  MWO
+  WO
+  FS
+  SGT
+  CPL
+  LCPL
+  ACM
+}
+
+enum RequestStatus {
+  APPROVED
+  REJECTED
+  PENDING
+}
+
+enum Department {
+  IT
+  ACCOUNT
+  ARCHIVE
+  LEGAL
+  OPERATION
+  CUSTOMER_CARE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum Relationship {
+  SPOUSE
+  PARTNER
+  FATHER
+  MOTHER
+  SON
+  DAUGHTER
+  GUARDIAN
+  SIBLING
+  OTHER
+}
+
+enum TransactionType {
+  LOAN_DISBURSEMENT
+  LOAN_REPAYMENT
+  SAVINGS_DEPOSIT
+  SAVINGS_WITHDRAWAL
+  FEE
+  ADJUSTMENT
+  LOAN_APPROVED
+  LOAN_REJECTED
+  PENDING
+  CASH_REFUND
+  CASH_PAYMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+  PENDING_VERIFICATION
+  DISBURSED
+}
+
+enum RepaymentStatus {
+  PENDING
+  PAID
+  LATE
+  DEFAULTED
+}
+
+enum MemberStatus {
+  APPROVED
+  REJECTED
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum Role {
+  MEMBER
+  ADMIN
+}
+
+enum Title {
+  MR
+  MRS
+  MISS
+}
+
+enum NotificationType {
+  SUCCESS
+  INFO
+  WARNING
+  ERROR
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+enum SavingStatus {
+  PENDING
+  FAILED
+  COMPLETED
+}
+
+enum LoanName {
+  EMERGENCY
+  HOME
+  COMMODITY
+  REGULAR
+  HOUSING
+}
+
+enum SavingType {
+  QUICK
+  COOPERATIVE
+}
+
+model Member {
+  id               String         @id @default(cuid())
+  email            String         @unique
+  password         String?
+  first_name       String
+  title            Title
+  last_name        String
+  other_name       String
+  gender           Gender
+  phone            String         @unique
+  address          String
+  state_of_origin  String
+  role             Role           @default(MEMBER)
+  lga              String
+  rank             Rank
+  date_of_birth    DateTime
+  created_at       DateTime       @default(now())
+  updated_at       DateTime       @updatedAt
+  profile_picture  String
+  monthlyDeduction Decimal        @default(0) @db.Decimal(10, 2)
+  service_number   String?        @unique
+  pin              String
+  status           MemberStatus   @default(PENDING)
+  kycInfo          KycInfo?
+  bank             Bank[]
+  savings          Saving[]
+  transactions     Transaction[]
+  Notification     Notification[]
+  Loan             Loan[]
+  Request          Request[]
+  Termination      Termination[]
+
+  @@map("member")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  full_name     String
+  department    Department
+  password      String
+  email         String         @unique
+  role          Role
+  status        UserStatus
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+  Notification  Notification[]
+  Loan          Loan[]
+  approvedLoans Loan[]         @relation("approvedLoans")
+  rejectedLoans Loan[]         @relation("rejectedLoans")
+  uploadLogs    UploadLog[]
+
+  @@map("user")
+}
+
+model Request {
+  id        String        @id @default(cuid())
+  reason    String
+  amount    Int
+  member    Member?       @relation(fields: [memberId], references: [id])
+  memberId  String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  status    RequestStatus @default(PENDING)
+
+  @@map("requests")
+}
+
+model Termination {
+  id        String        @id @default(cuid())
+  memberId  String
+  member    Member        @relation(fields: [memberId], references: [id])
+  reason    String
+  status    RequestStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @default(now()) @updatedAt
+
+  @@map("termination")
+}
+
+model Bank {
+  id             String @id @default(cuid())
+  name           String
+  account_number String
+  member         Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId       String
+
+  @@map("banks")
+}
+
+model KycInfo {
+  id             String @id @default(cuid())
+  identification String
+  id_card        String
+  signature      String
+  member         Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId       String @unique
+
+  @@map("kyc_info")
+}
+
+model NextOfKin {
+  id           String       @id @default(cuid())
+  first_name   String
+  last_name    String
+  title        Title
+  relationship Relationship
+  gender       Gender
+  phone        String       @unique
+  email        String
+  address      String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("next_of_kin")
+}
+
+model Loan {
+  id             String        @id @default(cuid())
+  categoryId     String
+  category       LoanCategory  @relation(fields: [categoryId], references: [id])
+  amount         Decimal       @db.Decimal(15, 2)
+  approvedAmount Decimal       @db.Decimal(15, 2)
+  status         LoanStatus    @default(PENDING_VERIFICATION)
+  interestRate   Int
+  durationMonths Int
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  memberId       String
+  reference      String
+  member         Member        @relation(fields: [memberId], references: [id])
+  otp            String?       @db.VarChar(6)
+  otpExpiresAt   DateTime?
+  transferredAt  DateTime?
+  approvedById   String?
+  approvedBy     User?         @relation(fields: [approvedById], references: [id], name: "approvedLoans")
+  rejectedById   String?
+  rejectedBy     User?         @relation(fields: [rejectedById], references: [id], name: "rejectedLoans")
+  repayments     Repayment[]
+  transactions   Transaction[]
+  User           User?         @relation(fields: [userId], references: [id])
+  userId         String?
+
+  @@index([memberId])
+  @@map("loans")
+}
+
+model Repayment {
+  id        String          @id @default(cuid())
+  loanId    String
+  loan      Loan            @relation(fields: [loanId], references: [id])
+  amount    Decimal         @db.Decimal(15, 2)
+  dueDate   DateTime
+  status    RepaymentStatus @default(PENDING)
+  paidAt    DateTime?
+  createdAt DateTime        @default(now())
+
+  @@map("repayments")
+}
+
+model LoanCategory {
+  id           String   @id @default(cuid())
+  name         LoanName @unique
+  description  String?
+  interestRate Decimal? @db.Decimal(5, 2)
+  minAmount    Decimal? @db.Decimal(15, 2)
+  maxAmount    Decimal? @db.Decimal(15, 2)
+  minDuration  Int?
+  maxDuration  Int?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  loans Loan[]
+
+  @@map("loan_category")
+}
+
+model Notification {
+  id         String             @id @default(cuid())
+  memberId   String?
+  title      String
+  message    String
+  type       NotificationType
+  status     NotificationStatus @default(UNREAD)
+  actionType String
+  actionId   String?
+  metadata   Json?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  member     Member?            @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  User       User?              @relation(fields: [userId], references: [id])
+  userId     String?
+
+  @@map("notifications")
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  amount      Decimal           @db.Decimal(15, 2)
+  type        TransactionType
+  description String
+  reference   String?
+  updatedAt   DateTime          @updatedAt
+  status      TransactionStatus @default(COMPLETED)
+  createdAt   DateTime          @default(now())
+  // loan        Loan?             @relation(fields: [loanId], references: [id])
+  // loanId      String?
+  // savings     Saving?           @relation(fields: [savingId], references: [id])
+  // savingId    String?
+  member      Member?           @relation(fields: [memberId], references: [id])
+  memberId    String?
+  Saving      Saving?           @relation(fields: [savingId], references: [id])
+  savingId    String?
+  Loan        Loan?             @relation(fields: [loanId], references: [id])
+  loanId      String?
+
+  @@map("transactions")
+}
+
+model Saving {
+  id         String       @id @default(cuid())
+  amount     Decimal      @db.Decimal(15, 2)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  memberId   String
+  member     Member       @relation(fields: [memberId], references: [id])
+  categoryId String
+  reference  String
+  status     SavingStatus
+
+  Transaction Transaction[]
+  category    SavingCategory @relation(fields: [categoryId], references: [id])
+
+  @@map("savings")
+}
+
+model SavingCategory {
+  id           String     @id @default(cuid())
+  name         String     @unique
+  type         SavingType @unique
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  interestRate Decimal    @db.Decimal(5, 2)
+  Saving       Saving[]
+
+  @@map("savings_category")
+}
+
+model UploadLog {
+  id             String    @id @default(cuid())
+  fileName       String
+  uploadType     String
+  processedItems Int       @default(0)
+  failedItems    Int       @default(0)
+  totalAmount    Float     @default(0)
+  status         String
+  uploadedById   String?
+  processingTime DateTime?
+  errors         String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  uploadedBy User? @relation(fields: [uploadedById], references: [id])
+
+  @@map("upload_logs")
+}
