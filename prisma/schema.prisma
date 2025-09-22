@@ -15,22 +15,20 @@ datasource db {
 }
 
 enum Rank {
-  AVM
-  AIR_CDRE
-  GP_CAPT
-  WG_CDR
-  SQN_LDR
-  FLT_LT
-  FG_OFFR
-  PLT_OFFR
-  AWO
+  MG
+  BG
+  COL
+  LT_COL
+  MAJ
+  CAPT
+  LT
   MWO
   WO
-  FS
+  SSGT
   SGT
   CPL
   LCPL
-  ACM
+  SPR
 }
 
 enum RequestStatus {
@@ -119,6 +117,7 @@ enum UserStatus {
 
 enum Role {
   MEMBER
+  STAFF
   ADMIN
 }
 

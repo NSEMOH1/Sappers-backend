@@ -95,9 +95,9 @@ export const createUser = async (userData: CreateUserData) => {
         email: userData.email,
         full_name: userData.full_name,
         password: hashedPassword,
-        role: userData.role,
+        role: Role.ADMIN,
         department: userData.department,
-        status: UserStatus.ACTIVE
+        status: UserStatus.ACTIVE,
       },
       select: {
         id: true,
@@ -538,7 +538,7 @@ export const getAllUsers = async (
       role: true,
       created_at: true,
       updated_at: true,
-      status: true
+      status: true,
     },
   });
 
