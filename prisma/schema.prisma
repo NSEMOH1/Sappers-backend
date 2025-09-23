@@ -137,7 +137,6 @@ enum NotificationType {
 enum NotificationStatus {
   UNREAD
   READ
-  ARCHIVED
 }
 
 enum SavingStatus {
@@ -187,7 +186,7 @@ model Member {
   savings          Saving[]
   transactions     Transaction[]
   Notification     Notification[]
-  Loan             Loan[]
+  loans            Loan[]
   Request          Request[]
   Termination      Termination[]
 
@@ -366,15 +365,11 @@ model Transaction {
   updatedAt   DateTime          @updatedAt
   status      TransactionStatus @default(COMPLETED)
   createdAt   DateTime          @default(now())
-  // loan        Loan?             @relation(fields: [loanId], references: [id])
-  // loanId      String?
-  // savings     Saving?           @relation(fields: [savingId], references: [id])
-  // savingId    String?
   member      Member?           @relation(fields: [memberId], references: [id])
   memberId    String?
-  Saving      Saving?           @relation(fields: [savingId], references: [id])
+  saving      Saving?           @relation(fields: [savingId], references: [id])
   savingId    String?
-  Loan        Loan?             @relation(fields: [loanId], references: [id])
+  loan        Loan?             @relation(fields: [loanId], references: [id])
   loanId      String?
 
   @@map("transactions")

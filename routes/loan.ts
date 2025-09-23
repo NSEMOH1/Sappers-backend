@@ -1,5 +1,6 @@
 import { Router, Response, NextFunction } from "express";
 import {
+  applyForLoan,
   // applyForLoan,
   approveLoan,
   confirmLoanWithOTP,
@@ -20,40 +21,40 @@ import { Role } from "@prisma/client";
 
 const router = Router();
 
-// router.post(
-//   "/apply",
-//   requireRoles([Role.MEMBER]),
-//   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-//     try {
-//       const memberId = req.user?.id;
+router.post(
+  "/apply",
+  requireRoles([Role.MEMBER]),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const memberId = req.user?.id;
 
-//       if (!memberId) {
-//         res.status(401).json({
-//           success: false,
-//           message: "User not authenticated",
-//         });
-//         return;
-//       }
+      if (!memberId) {
+        res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+        return;
+      }
 
-//       const result = await applyForLoan({
-//         ...req.body,
-//         memberId,
-//       });
+      const result = await applyForLoan({
+        ...req.body,
+        memberId,
+      });
 
-//       // await notifyLoanApplication(
-//       //     memberId,
-//       //     result.loanId,
-//       //     req.body.amount,
-//       //     req.body.categoryName
-//       // );
-//       res.status(201).json({
-//         ...result,
-//       });
-//     } catch (error) {
-//       next(error);
-//     }
-//   }
-// );
+      // await notifyLoanApplication(
+      //     memberId,
+      //     result.loanId,
+      //     req.body.amount,
+      //     req.body.categoryName
+      // );
+      res.status(201).json({
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 router.get(
   "/",

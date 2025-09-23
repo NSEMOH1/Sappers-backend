@@ -12,6 +12,8 @@ import { userRoutes } from "./routes/user";
 import { loanRoutes } from "./routes/loan";
 import { requestRoutes } from "./routes/request";
 import { terminationRoutes } from "./routes/termination";
+import { savingsRoutes } from "./routes/savings";
+import { adminReportRoutes } from "./routes/report";
 
 const createApp = () => {
   const app = express();
@@ -52,6 +54,8 @@ const createApp = () => {
   app.use("/api/loan", loanRoutes);
   app.use("/api/requests", requestRoutes);
   app.use("/api/termination", terminationRoutes);
+  app.use("/api/savings", savingsRoutes);
+  app.use("/api/admin-report", adminReportRoutes);
 
   //   setupSocket(io);
   app.use(/.*/, (req, res) => {

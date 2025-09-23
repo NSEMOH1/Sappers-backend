@@ -1,8 +1,157 @@
-import { LoanStatus, RepaymentStatus, TransactionType } from "@prisma/client";
+import {
+  LoanStatus,
+  RepaymentStatus,
+  TransactionStatus,
+  TransactionType,
+} from "@prisma/client";
 import { prisma } from "../config/database";
 import { LoanBalance, MemberLoanHistory } from "../types";
 import Decimal from "decimal.js";
-import { verifyOTP } from "../utils/functions";
+import {
+  generateLoanReference,
+  generateOTP,
+  verifyOTP,
+} from "../utils/functions";
+
+interface LoanApplicationData {
+  memberId: string;
+  categoryId: string;
+  amount: number;
+  durationMonths: number;
+}
+
+export const applyForLoan = async (applicationData: LoanApplicationData) => {
+  const { memberId, categoryId, amount, durationMonths } = applicationData;
+
+  return await prisma.$transaction(async (tx) => {
+    const member = await tx.member.findUnique({
+      where: { id: memberId },
+    });
+
+    if (!member) {
+      throw new Error("Member not found");
+    }
+
+    if (member.status !== "ACTIVE") {
+      throw new Error("Member account is not active");
+    }
+    const loanCategory = await tx.loanCategory.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (!loanCategory || !loanCategory.isActive) {
+      throw new Error("Loan category not found or inactive");
+    }
+    const existingPendingLoan = await tx.loan.findFirst({
+      where: {
+        memberId,
+        status: {
+          in: [LoanStatus.PENDING, LoanStatus.PENDING_VERIFICATION],
+        },
+      },
+    });
+
+    if (existingPendingLoan) {
+      throw new Error(
+        "You already have a pending loan application. Please wait for it to be processed."
+      );
+    }
+
+    const interestRate = durationMonths <= 12 ? 5 : 7;
+    const reference = generateLoanReference();
+
+    const loan = await tx.loan.create({
+      data: {
+        categoryId,
+        memberId,
+        amount: new Decimal(amount),
+        approvedAmount: new Decimal(0),
+        status: LoanStatus.PENDING_VERIFICATION,
+        interestRate,
+        durationMonths,
+        reference,
+        startDate: null,
+        endDate: null,
+      },
+    });
+
+    const repaymentSchedule = calculateRepayments(
+      loan.id,
+      new Decimal(amount),
+      durationMonths,
+      interestRate
+    );
+
+    await tx.repayment.createMany({
+      data: repaymentSchedule,
+    });
+
+    const otp = generateOTP();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await tx.loan.update({
+      where: { id: loan.id },
+      data: {
+        otp,
+        otpExpiresAt,
+      },
+    });
+
+    await tx.transaction.create({
+      data: {
+        loanId: loan.id,
+        memberId,
+        type: TransactionType.PENDING,
+        amount: new Decimal(amount),
+        status: TransactionStatus.PENDING,
+        description: `Loan application for ${loanCategory.name} - awaiting OTP verification`,
+        reference,
+      },
+    });
+
+    return {
+      loan: {
+        id: loan.id,
+        reference: loan.reference,
+        amount: loan.amount.toNumber(),
+        category: loanCategory.name,
+        durationMonths: loan.durationMonths,
+        interestRate: loan.interestRate,
+        status: loan.status,
+        createdAt: loan.createdAt,
+      },
+      otp: otp,
+      otpSent: true,
+      otpExpiresAt,
+      message:
+        "Loan application submitted successfully. Please verify with OTP sent to your phone.",
+    };
+  });
+};
+
+export const calculateRepayments = (
+  loanId: string,
+  amount: Decimal,
+  annualInterestRate: number,
+  durationMonths: number
+) => {
+  const principal = new Decimal(amount);
+  const interestRate = new Decimal(annualInterestRate).div(100);
+
+  const totalInterest = principal
+    .mul(interestRate)
+    .mul(new Decimal(durationMonths).div(12));
+
+  const totalRepayment = principal.add(totalInterest);
+  const monthlyPayment = totalRepayment.div(durationMonths).toDecimalPlaces(2);
+
+  return Array.from({ length: durationMonths }, (_, i) => ({
+    loanId,
+    amount: monthlyPayment,
+    dueDate: new Date(Date.now() + (i + 1) * 30 * 24 * 60 * 60 * 1000),
+    status: RepaymentStatus.PENDING,
+  }));
+};
 
 export const confirmLoanWithOTP = async (
   loanId: string,

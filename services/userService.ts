@@ -95,7 +95,7 @@ export const createUser = async (userData: CreateUserData) => {
         email: userData.email,
         full_name: userData.full_name,
         password: hashedPassword,
-        role: Role.ADMIN,
+        role: userData.role || Role.ADMIN,
         department: userData.department,
         status: UserStatus.ACTIVE,
       },

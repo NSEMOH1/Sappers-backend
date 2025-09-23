@@ -15,6 +15,7 @@ import {
 import { generateSavingsReference } from "../utils/functions";
 import { comparePin } from "../utils/password";
 import * as XLSX from "xlsx";
+import { endOfMonth, startOfMonth } from "date-fns";
 
 export const getMemberTotalSavings = async (memberId: string) => {
   const result = await prisma.saving.aggregate({
@@ -283,7 +284,14 @@ export const getAllSavings = async () => {
     prisma.saving.findMany({
       select: {
         id: true,
-        member: true,
+        member: {
+          select: {
+            first_name: true,
+            last_name: true,
+            email: true,
+            phone: true,
+          },
+        },
         amount: true,
         category: true,
         reference: true,
