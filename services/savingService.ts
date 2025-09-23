@@ -307,7 +307,7 @@ export const getAllSavings = async () => {
   ]);
 
   return {
-    savings: savings.length ? savings : "No Savings found",
+    savings: savings,
     total: total._sum.amount || 0,
   };
 };
